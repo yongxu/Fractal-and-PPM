@@ -55,6 +55,8 @@
           var height = document.getElementById('height');
           var drawButton = document.getElementById('draw');
           var ctx = canvas.getContext('2d');
+          ctx.scale(1,-1);
+          ctx.translate(0,canvas.height);
 
           function draw(width,height){
             //erase canvas
@@ -72,7 +74,7 @@
               return halfHeight - y * scale;
             }
 
-            ctx.fillRect(Tx(0),Ty(0),Tx(0.5),Ty(0.9));
+            ctx.fillRect(0,0,100,100);
           }
 
           function generatePPM(){
