@@ -68,7 +68,8 @@
           <textarea id="input" rows="10" cols="50">imsize 400 400
           </textarea>
           <div>
-            <button id="readInput">read</button>
+            <button id="readInput">read input</button>
+            <button id="download">download ppm</button>
           </div>
           PPM code output:
           <pre><code id="ppm"></code></pre>
@@ -173,7 +174,14 @@
           }
           drawButton.addEventListener("click", update);
           document.getElementById('readInput').addEventListener("click", readInput);
+          document.getElementById('download').addEventListener("click", function(){
 
+            var dl = document.createElement('a');
+            dl.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(ppm.innerText));
+            dl.setAttribute('download', 'graph.ppm');
+            dl.click();
+
+          });
         })();
       </script>
     </body>
