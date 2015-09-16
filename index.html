@@ -5,13 +5,16 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
-        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.1/lodash.min.js"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.8.0/styles/sunburst.min.css">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.8.0/highlight.min.js"></script>
+        <script>hljs.initHighlightingOnLoad();</script>
         <title>Fractal-and-PPM</title>
     </head>
     <style type="text/css">
       body {
         width:100%;
         height:100vh;
+        overflow: hidden;
       }
       canvas{
         border-style: outset;
@@ -19,66 +22,127 @@
         width: 400px;
         height: 400px;
       }
+      .layout{
+        display: flex;
+        align-items: stretch;
+      }
+      .draw{
+        min-width: 450px;
+      }
+      .code{
+        flex: 1;
+      }
     </style>
     <body>
       <a href="https://github.com/yongxu/Fractal-and-PPM"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/a6677b08c955af8400f44c6298f40e7d19cc5b2d/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f677261795f3664366436642e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png"></a>
-      <form>
-        <section>
-          <p>imsize</p>
-          <p>
-            <label for="number">
-              <span>width:</span>
-              <input type="text" id="width" value="400" required />
-            </label>
-          </p>
-          <p>
-            <label for="number">
-              <span>height:</span>
-              <input type="text" id="height" value="400" required />
-            </label>
-          </p>
-        </section>
+      <div class="layout">
+        <div class="draw">
+          <form>
+            <section>
+              <p>
+                <label for="number">
+                  <span>width:</span>
+                  <input type="text" id="width" value="400" required />
+                </label>
+              </p>
+              <p>
+                <label for="number">
+                  <span>height:</span>
+                  <input type="text" id="height" value="400" required />
+                </label>
+              </p>
+            </section>
 
-        <section>
-          <p>
-            <span>click to draw canvas with imsize width height:</span>
-            <button type="submit" id="draw">draw</button>
-          </p>
-        </section>
+            <section>
+              <p>
+                <span>click to draw image by width height:</span>
+                <button type="submit" id="draw">draw</button>
+              </p>
+            </section>
 
-      </form>
-      <canvas id="canvas"></canvas >
+          </form>
+          <canvas id="canvas"></canvas >
+        </div>
+        <div class="code">
+          <p>input file:</P>
+          <textarea id="input" rows="10" cols="50">imsize 400 400
+          </textarea>
+          <div>
+            <button id="readInput">read</button>
+          </div>
+          PPM code output:
+          <pre><code id="ppm"></code></pre>
+        </div>
+      </div>
+
+
       <script type="text/javascript">
         (function(){
           var canvas = document.getElementById('canvas');
           var width = document.getElementById('width');
           var height = document.getElementById('height');
           var drawButton = document.getElementById('draw');
-          var ctx = canvas.getContext('2d');
-          ctx.scale(1,-1);
-          ctx.translate(0,canvas.height);
+          var code = document.getElementById('input');
+          var ppm = document.getElementById('ppm');
 
+          var ctx = canvas.getContext('2d');
           function draw(width,height){
-            //erase canvas
-            ctx.clearRect(0,0, canvas.width, canvas.height);
             var halfWidth = width/2;
             var halfHeight = height/2;
             var ratio = width/height;
-            // let shorter edge bounded by -1 and 1
-            var scale = ratio<1 ? halfWidth : halfHeight;
-            //transform coordinate, y points up, origin at center
-            function Tx(x){
-              return x * scale + halfWidth;
+            // let shorter edge bounded by (-1,1) and (0,2)
+            var scale = ratio<1 ? width/2 : height/2;
+            //erase canvas
+            ctx.fillStyle = 'rgb(0,0,0)';
+            ctx.fillRect(0,0, canvas.width, canvas.height);
+            ctx.save();
+            //transform coordinate, y points up, origin at bottom center
+            ctx.translate(halfWidth,height);
+            //scale down bounded with the shorter edge
+            ctx.scale(1,-1);
+            var angle = 15*Math.PI/180;
+            var height = scale*0.35;
+            var trunkRatio = 0.82;
+            var visibilityRatio = 0.7;
+            function tree(angle,height,depth){
+              if(depth==0){
+                return;
+              }
+              ctx.strokeStyle = 'rgba('+(20*depth+50)+',255,'+(20*depth+50)+','+(1-Math.pow(visibilityRatio,depth))+')';
+              //base trunk
+              ctx.beginPath();
+              ctx.moveTo(0,0);
+              ctx.lineTo(0,height);
+              ctx.stroke();
+              ctx.translate(0,height);
+              //left
+              ctx.save();
+              ctx.rotate(-angle);
+              tree(angle,height*trunkRatio,depth-1);
+              ctx.restore();
+              //right
+              ctx.save();
+              ctx.rotate(angle);
+              tree(angle,height*trunkRatio,depth-1);
+              ctx.restore();
             }
-            function Ty(y){
-              return halfHeight - y * scale;
-            }
+            tree(angle,height,10);
 
-            ctx.fillRect(0,0,100,100);
+            ctx.restore();
           }
 
           function generatePPM(){
-            var bitmap = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            var bitmap = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            var data = "";
+            for(var i = 0; i < bitmap.length; i+=4){
+              if( (i/4)%canvas.width == 0)
+                data+="\n";
+              data+="" + bitmap[i] + " " + bitmap[i +1] + " " + bitmap[i +2] + " ";
+            }
+            ppm.innerText = "P3\n"
+            + "#this project is written by Yongxu Ren, for graphics class\n"
+            + width.value + " " + height.value + "\n"
+            + "255" + data;
 
           }
 
@@ -87,12 +151,28 @@
             if(width.value && height.value){
               canvas.width = width.value;
               canvas.height = height.value;
+              code.innerText="imsize " + width.value + " " + height.value + "\n";
               draw(canvas.width,canvas.height);
               generatePPM();
             }
           }
-
+          function readInput(){
+            var keys = code.value.split(" ");
+            if(keys[0]=="imsize"){
+              var iwidth,iheight;
+              try{
+                iwidth = parseInt(keys[1]);
+                iheight = parseInt(keys[2]);
+              }
+              catch(e){
+                return;
+              }
+              width.value=iwidth;
+              height.value=iheight;
+            }
+          }
           drawButton.addEventListener("click", update);
+          document.getElementById('readInput').addEventListener("click", readInput);
 
         })();
       </script>
